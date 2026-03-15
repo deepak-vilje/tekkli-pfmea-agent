@@ -494,8 +494,20 @@ export function startOfficeBridge(
     return executionResult;
   };
 
+  const QUEUE_TASK_TIMEOUT_MS = 60_000;
+
   const runQueued = <T>(work: () => Promise<T>): Promise<T> => {
-    const task = queue.then(work, work);
+    const timedWork = () =>
+      Promise.race([
+        work(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Bridge task timed out")),
+            QUEUE_TASK_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+    const task = queue.then(timedWork, timedWork);
     queue = task.then(
       () => undefined,
       () => undefined,

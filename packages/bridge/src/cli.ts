@@ -648,7 +648,7 @@ async function commandScreenshot(cli: Cli) {
     case "word": {
       toolName = "screenshot_document";
       const pages = str(cli, "pages");
-      if (pages) payload.pages = pages;
+      if (pages) payload.page = Number.parseInt(pages, 10);
       if (explanation) payload.explanation = explanation;
       defaultOutputBase = "word-screenshot.png";
       break;
