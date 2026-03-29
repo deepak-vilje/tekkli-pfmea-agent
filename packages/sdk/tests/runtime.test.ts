@@ -1,8 +1,11 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { AgentRuntime, type RuntimeAdapter, type RuntimeState } from "../src/runtime";
-import { configureNamespace } from "../src/storage/namespace";
-import { resetVfs, setStaticFiles } from "../src/vfs";
+import { AgentContext } from "../src/context";
+import {
+  AgentRuntime,
+  type RuntimeAdapter,
+  type RuntimeState,
+} from "../src/runtime";
 
 // Stub localStorage for Node
 if (typeof globalThis.localStorage === "undefined") {
@@ -25,56 +28,46 @@ let nsCounter = 0;
 
 function freshNamespace() {
   nsCounter++;
-  const dbName = `RuntimeTestDB_${nsCounter}`;
-  configureNamespace({
-    dbName,
+  return {
+    dbName: `RuntimeTestDB_${nsCounter}`,
     dbVersion: 1,
     localStoragePrefix: `runtime-test-${nsCounter}`,
     documentSettingsPrefix: `runtime-test-${nsCounter}`,
     documentIdSettingsKey: `runtime-test-${nsCounter}-document-id`,
-  });
-  return dbName;
+  };
 }
 
-function createAdapter(overrides: Partial<RuntimeAdapter> = {}): RuntimeAdapter {
+function createAdapter(
+  overrides: Partial<RuntimeAdapter> = {},
+): RuntimeAdapter {
   return {
     tools: [],
     buildSystemPrompt: () => "You are a test assistant.",
     getDocumentId: async () => "test-doc-1",
+    storageNamespace: freshNamespace(),
     ...overrides,
   };
 }
 
+function createRuntime(overrides: Partial<RuntimeAdapter> = {}): AgentRuntime {
+  const adapter = createAdapter(overrides);
+  const ctx = new AgentContext({
+    namespace: adapter.storageNamespace,
+    staticFiles: adapter.staticFiles,
+  });
+  return new AgentRuntime(adapter, ctx);
+}
+
 describe("AgentRuntime", () => {
-  let dbName: string;
-
-  beforeEach(() => {
-    dbName = freshNamespace();
-    resetVfs();
-    setStaticFiles({});
-  });
-
-  afterEach(async () => {
-    resetVfs();
-    setStaticFiles({});
-    // Clean up IndexedDB
-    await new Promise<void>((resolve) => {
-      const req = indexedDB.deleteDatabase(dbName);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve();
-      req.onblocked = () => resolve();
-    });
-  });
-
   it("getModelsForProvider returns empty array for unknown provider", () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     const models = runtime.getModelsForProvider("nonexistent-provider");
     expect(models).toEqual([]);
     runtime.dispose();
   });
 
   it("applyConfig sets up agent and updates state", () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
 
     runtime.applyConfig({
       provider: "openai",
@@ -97,7 +90,7 @@ describe("AgentRuntime", () => {
   });
 
   it("applyConfig with custom provider builds custom model", () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
 
     runtime.applyConfig({
       provider: "custom",
@@ -120,7 +113,7 @@ describe("AgentRuntime", () => {
   });
 
   it("sendMessage errors when no config", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.sendMessage("hello");
     const state = runtime.getState();
     expect(state.error).toContain("API key");
@@ -128,7 +121,7 @@ describe("AgentRuntime", () => {
   });
 
   it("clearMessages resets state", () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
 
     runtime.applyConfig({
       provider: "openai",
@@ -150,7 +143,7 @@ describe("AgentRuntime", () => {
   });
 
   it("toggleFollowMode flips followMode", () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
 
     runtime.applyConfig({
       provider: "openai",
@@ -172,7 +165,7 @@ describe("AgentRuntime", () => {
   });
 
   it("toggleExpandToolCalls flips expandToolCalls", () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
 
     runtime.applyConfig({
       provider: "openai",
@@ -192,7 +185,7 @@ describe("AgentRuntime", () => {
   });
 
   it("uploadFiles adds files and updates state", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     await runtime.uploadFiles([
@@ -211,7 +204,7 @@ describe("AgentRuntime", () => {
   });
 
   it("removeUpload removes a file from state", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     await runtime.uploadFiles([
@@ -229,7 +222,7 @@ describe("AgentRuntime", () => {
   });
 
   it("init loads session and skills", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     const state = runtime.getState();
@@ -240,7 +233,7 @@ describe("AgentRuntime", () => {
   });
 
   it("init is idempotent", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
     const session1 = runtime.getState().currentSession;
     await runtime.init();
@@ -250,7 +243,7 @@ describe("AgentRuntime", () => {
   });
 
   it("newSession creates a fresh session", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     const firstSession = runtime.getState().currentSession!.id;
@@ -263,7 +256,7 @@ describe("AgentRuntime", () => {
   });
 
   it("switchSession restores a previous session", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     const firstId = runtime.getState().currentSession!.id;
@@ -279,20 +272,19 @@ describe("AgentRuntime", () => {
   });
 
   it("deleteCurrentSession switches to another session", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     const firstId = runtime.getState().currentSession!.id;
     await runtime.newSession();
 
     await runtime.deleteCurrentSession();
-    // Should have switched to a different (or new) session
     expect(runtime.getState().currentSession).not.toBeNull();
     runtime.dispose();
   });
 
   it("emits state to subscribers on update", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     const states: RuntimeState[] = [];
     const unsub = runtime.subscribe((s) => states.push(s));
 
@@ -314,8 +306,51 @@ describe("AgentRuntime", () => {
     runtime.dispose();
   });
 
+  it("init applies adapter.staticFiles to context", async () => {
+    const ns = freshNamespace();
+    const ctx = new AgentContext({ namespace: ns });
+
+    const adapter = createAdapter({
+      storageNamespace: ns,
+      staticFiles: {
+        "/home/user/docs/word-api.d.ts": "declare const Word: any;",
+      },
+    });
+
+    expect(await ctx.fileExists("/home/user/docs/word-api.d.ts")).toBe(false);
+
+    const runtime = new AgentRuntime(adapter, ctx);
+    await runtime.init();
+
+    expect(await ctx.fileExists("/home/user/docs/word-api.d.ts")).toBe(true);
+    expect(await ctx.readFile("/home/user/docs/word-api.d.ts")).toBe(
+      "declare const Word: any;",
+    );
+    runtime.dispose();
+  });
+
+  it("init applies adapter.customCommands to context", async () => {
+    const ns = freshNamespace();
+    const ctx = new AgentContext({ namespace: ns });
+    expect(ctx.commandSnippets).toEqual([]);
+
+    const adapter = createAdapter({
+      storageNamespace: ns,
+      customCommands: () => ({
+        commands: [],
+        promptSnippets: ["Use `my-cmd` to do stuff"],
+      }),
+    });
+
+    const runtime = new AgentRuntime(adapter, ctx);
+    await runtime.init();
+
+    expect(ctx.commandSnippets).toEqual(["Use `my-cmd` to do stuff"]);
+    runtime.dispose();
+  });
+
   it("uploadFiles replaces existing upload with same name", async () => {
-    const runtime = new AgentRuntime(createAdapter());
+    const runtime = createRuntime();
     await runtime.init();
 
     await runtime.uploadFiles([
@@ -330,6 +365,4 @@ describe("AgentRuntime", () => {
     expect(state.uploads[0].size).toBe(20);
     runtime.dispose();
   });
-
-
 });
