@@ -9,7 +9,8 @@ const OptionSchema = Type.Object({
 
 const QuestionSchema = Type.Object({
   header: Type.String({
-    description: "Short section header shown above the question (e.g. 'Risk Rating')",
+    description:
+      "Short section header shown above the question (e.g. 'Risk Rating')",
   }),
   question: Type.String({
     description: "The question text presented to the user",
@@ -46,10 +47,7 @@ export const askUserQuestionTool = defineTool({
     ),
   }),
   execute: async (toolCallId, params) => {
-    const answers = await registerPendingQuestion(
-      toolCallId,
-      params.questions,
-    );
+    const answers = await registerPendingQuestion(toolCallId, params.questions);
 
     const result: Record<string, string[]> = {};
     for (let i = 0; i < params.questions.length; i++) {

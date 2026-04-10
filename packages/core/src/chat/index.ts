@@ -14,9 +14,9 @@ export { getChatContext } from "./chat-runtime-context";
 export { default as FilesPanel } from "./files-panel.svelte";
 export {
   type PendingQuestion,
+  pendingQuestions,
   type Question,
   type QuestionOption,
-  pendingQuestions,
   registerPendingQuestion,
   resolvePendingQuestion,
 } from "./pending-questions";

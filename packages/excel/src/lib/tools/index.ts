@@ -13,7 +13,6 @@ export { resizeRangeTool } from "./resize-range";
 export { screenshotRangeTool } from "./screenshot-range";
 export { searchDataTool } from "./search-data";
 export { setCellRangeTool } from "./set-cell-range";
-export { updateStepsTool } from "./update-steps";
 export {
   defineTool,
   type ToolResult,
@@ -21,6 +20,7 @@ export {
   toolSuccess,
   toolText,
 } from "./types";
+export { updateStepsTool } from "./update-steps";
 
 import type { AgentContext } from "@office-agents/core";
 import { createBashTool, createReadTool } from "@office-agents/core";
