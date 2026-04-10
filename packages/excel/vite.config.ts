@@ -18,8 +18,20 @@ async function getHttpsOptions() {
     const certs = await devCerts.getHttpsServerOptions();
     return { ca: certs.ca, key: certs.key, cert: certs.cert };
   } catch {
-    console.warn("Could not load office-addin-dev-certs, HTTPS disabled");
-    return undefined;
+    // Fallback: read certs directly from the standard location
+    const fs = await import("fs");
+    const os = await import("os");
+    const certDir = path.join(os.homedir(), ".office-addin-dev-certs");
+    try {
+      return {
+        ca: fs.readFileSync(path.join(certDir, "ca.crt")),
+        key: fs.readFileSync(path.join(certDir, "localhost.key")),
+        cert: fs.readFileSync(path.join(certDir, "localhost.crt")),
+      };
+    } catch {
+      console.warn("Could not load office-addin-dev-certs, HTTPS disabled");
+      return undefined;
+    }
   }
 }
 

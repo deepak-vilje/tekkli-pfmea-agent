@@ -3,6 +3,9 @@
   import { CheckCircle2, Loader2, Wrench, XCircle } from "lucide-svelte";
   import { getChatContext } from "./chat-runtime-context";
   import MarkdownContent from "./markdown-content.svelte";
+  import AskUserQuestion from "./ask-user-question.svelte";
+  import StepsPanel from "./steps-panel.svelte";
+  import { pendingQuestions } from "./pending-questions";
 
   type ToolCallPart = Extract<MessagePart, { type: "toolCall" }>;
 
@@ -22,6 +25,23 @@
   const chat = getChatContext();
   const runtimeState = chat.state;
   let isExpanded = $state(chat.snapshot.providerConfig?.expandToolCalls ?? false);
+
+  const pendingQuestion = $derived($pendingQuestions.get(part.id));
+
+  function parseSteps(raw: string | undefined) {
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.steps)) return parsed.steps;
+    } catch {
+      // not valid JSON
+    }
+    return null;
+  }
+
+  const stepsData = $derived(
+    part.name === "update_steps" ? parseSteps(part.result) : null,
+  );
 
   function splitArgs(args: Record<string, unknown>) {
     const codeBlocks: { field: string; lang: string; value: string }[] = [];
@@ -76,6 +96,11 @@
   </svg>
 {/snippet}
 
+{#if pendingQuestion}
+  <AskUserQuestion pending={pendingQuestion} />
+{:else if part.name === "update_steps" && stepsData}
+  <StepsPanel steps={stepsData} />
+{:else}
 <div class="mt-3 mb-2 border border-(--chat-border) bg-(--chat-bg) rounded-sm overflow-hidden">
   <button
     type="button"
@@ -169,3 +194,4 @@
     </div>
   {/if}
 </div>
+{/if}

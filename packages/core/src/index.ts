@@ -98,7 +98,17 @@ export type {
   AppAdapter,
   ChatTab,
   CustomCommandsResult,
+  PendingQuestion,
+  Question,
+  QuestionOption,
   ToolExtrasProps,
 } from "./chat";
-export { ChatInterface, FilesPanel, getChatContext } from "./chat";
+export {
+  ChatInterface,
+  FilesPanel,
+  getChatContext,
+  pendingQuestions,
+  registerPendingQuestion,
+  resolvePendingQuestion,
+} from "./chat";
 export { default as ErrorBoundary } from "./chat/error-boundary.svelte";

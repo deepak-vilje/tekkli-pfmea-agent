@@ -1,4 +1,5 @@
 export { createBashTool, createReadTool } from "@office-agents/core";
+export { askUserQuestionTool } from "./ask-user-question";
 export { clearCellRangeTool } from "./clear-cell-range";
 export { copyToTool } from "./copy-to";
 export { createEvalOfficeJsTool } from "./eval-officejs";
@@ -12,6 +13,7 @@ export { resizeRangeTool } from "./resize-range";
 export { screenshotRangeTool } from "./screenshot-range";
 export { searchDataTool } from "./search-data";
 export { setCellRangeTool } from "./set-cell-range";
+export { updateStepsTool } from "./update-steps";
 export {
   defineTool,
   type ToolResult,
@@ -22,6 +24,7 @@ export {
 
 import type { AgentContext } from "@office-agents/core";
 import { createBashTool, createReadTool } from "@office-agents/core";
+import { askUserQuestionTool } from "./ask-user-question";
 import { clearCellRangeTool } from "./clear-cell-range";
 import { copyToTool } from "./copy-to";
 import { createEvalOfficeJsTool } from "./eval-officejs";
@@ -35,6 +38,7 @@ import { resizeRangeTool } from "./resize-range";
 import { screenshotRangeTool } from "./screenshot-range";
 import { searchDataTool } from "./search-data";
 import { setCellRangeTool } from "./set-cell-range";
+import { updateStepsTool } from "./update-steps";
 
 export function createExcelTools(ctx: AgentContext) {
   return [
@@ -56,5 +60,8 @@ export function createExcelTools(ctx: AgentContext) {
     resizeRangeTool,
     modifyObjectTool,
     createEvalOfficeJsTool(ctx),
+    // UI interaction tools
+    askUserQuestionTool,
+    updateStepsTool,
   ];
 }
